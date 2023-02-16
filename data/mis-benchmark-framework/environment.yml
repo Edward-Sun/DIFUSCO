@@ -1,0 +1,22 @@
+name: mwis-benchmark
+channels:
+  - dglteam
+  - pytorch
+  - conda-forge
+  - anaconda
+dependencies:
+  - python=3.8
+  - pytorch
+  - cpuonly
+  - dgl
+  - numpy
+  - scipy
+  - networkx
+  - logzero
+  - tqdm
+  - requests
+  - filelock
+  - osmnx
+  - pip
+  - pip:
+    - python-sat
