@@ -1,4 +1,4 @@
-"""Train a Pytorch-Lightning diffusion model on a TSP dataset."""
+"""The handler for training and evaluation."""
 
 import os
 from argparse import ArgumentParser
