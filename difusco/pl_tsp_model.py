@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
+from pytorch_lightning.utilities import rank_zero_info
 
 from co_datasets.tsp_graph_dataset import TSPGraphDataset
 from pl_meta_model import COMetaModel
@@ -223,12 +224,18 @@ class TSPModel(COMetaModel):
       if self.args.save_numpy_heatmap:
         if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
           raise NotImplementedError("Save numpy heatmap only support single sampling")
+        exp_save_dir = os.path.join(self.logger.save_dir, self.logger.name, self.logger.version)
+        heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
+        rank_zero_info(f"Saving heatmap to {heatmap_path}")
+        os.makedirs(heatmap_path, exist_ok=True)
+        real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
+        np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
+        np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
 
       tours, merge_iterations = merge_tours(
-          adj_mat, np_points, np_edge_index, split, real_batch_idx,
-          logger=self.logger, sparse_graph=self.sparse,
+          adj_mat, np_points, np_edge_index,
+          sparse_graph=self.sparse,
           parallel_sampling=self.args.parallel_sampling,
-          save_numpy_heatmap=self.args.save_numpy_heatmap,
       )
 
       # Refine using 2-opt

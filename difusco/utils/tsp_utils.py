@@ -6,7 +6,6 @@ import numpy as np
 import scipy.sparse
 import scipy.spatial
 import torch
-from pytorch_lightning.utilities import rank_zero_info
 from utils.cython_merge.cython_merge import merge_cython
 
 
@@ -87,8 +86,7 @@ def cython_merge(points, adj_mat):
   return real_adj_mat, merge_iterations
 
 
-def merge_tours(adj_mat, np_points, edge_index_np, split, real_batch_idx, logger,
-                sparse_graph=False, parallel_sampling=1, save_numpy_heatmap=False):
+def merge_tours(adj_mat, np_points, edge_index_np, sparse_graph=False, parallel_sampling=1):
   """
   To extract a tour from the inferred adjacency matrix A, we used the following greedy edge insertion
   procedure.
@@ -144,16 +142,6 @@ def merge_tours(adj_mat, np_points, edge_index_np, split, real_batch_idx, logger
     tours.append(tour)
 
   merge_iterations = np.mean(splitted_merge_iterations)
-
-  if save_numpy_heatmap:
-    exp_save_dir = os.path.join(logger.save_dir, logger.name, logger.version)
-    heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
-    rank_zero_info(f"Saving heatmap to {heatmap_path}")
-    os.makedirs(heatmap_path, exist_ok=True)
-    real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
-    np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
-    np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
-
   return tours, merge_iterations
 
 
