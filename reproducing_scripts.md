@@ -366,7 +366,3 @@ python -u difusco/train.py \
   --ckpt_path "/your/mis_er_gaussian/ckpt_path/last.ckpt" \
   --resume_weight_only
 ```
-
-## Pretrained model checkpoints
-
-Please download the pretrained model checkpoints from [here](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH?usp=sharing).
