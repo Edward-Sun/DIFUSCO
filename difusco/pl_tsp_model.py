@@ -1,27 +1,38 @@
 """Lightning module for training the DIFUSCO TSP model."""
 
 import os
-from multiprocessing import Pool
 
 import numpy as np
-import scipy.sparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
-from torch_geometric.data import DataLoader as GraphDataLoader
-from pytorch_lightning.utilities import rank_zero_info
 
 from co_datasets.tsp_graph_dataset import TSPGraphDataset
-from utils.diffusion_schedulers import InferenceSchedule
 from pl_meta_model import COMetaModel
-from utils.tsp_utils import TSPEvaluator, batched_two_opt_torch, cython_merge
+from utils.diffusion_schedulers import InferenceSchedule
+from utils.tsp_utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 
 class TSPModel(COMetaModel):
   def __init__(self,
                param_args=None):
     super(TSPModel, self).__init__(param_args=param_args, node_feature_only=False)
+
+    self.train_dataset = TSPGraphDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.training_split),
+        sparse_factor=self.args.sparse_factor,
+    )
+
+    self.test_dataset = TSPGraphDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.test_split),
+        sparse_factor=self.args.sparse_factor,
+    )
+
+    self.validation_dataset = TSPGraphDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
+        sparse_factor=self.args.sparse_factor,
+    )
 
   def forward(self, x, adj, t, edge_index):
     return self.model(x, t, adj, edge_index)
@@ -140,7 +151,7 @@ class TSPModel(COMetaModel):
 
   def test_step(self, batch, batch_idx, split='test'):
     edge_index = None
-    edge_index_np = None
+    np_edge_index = None
     device = batch[-1].device
     if not self.sparse:
       real_batch_idx, points, adj_matrix, gt_tour = batch
@@ -154,23 +165,30 @@ class TSPModel(COMetaModel):
       num_edges = edge_index.shape[1]
       batch_size = point_indicator.shape[0]
       adj_matrix = route_edge_flags.reshape((batch_size, num_edges // batch_size))
-      np_points = points.cpu().numpy().reshape((-1, 2))
+      points = points.reshape((-1, 2))
+      edge_index = edge_index.reshape((2, -1))
+      np_points = points.cpu().numpy()
       np_gt_tour = gt_tour.cpu().numpy().reshape(-1)
+      np_edge_index = edge_index.cpu().numpy()
 
     stacked_tours = []
     ns, merge_iterations = 0, 0
+
+    if self.args.parallel_sampling > 1:
+      if not self.sparse:
+        points = points.repeat(self.args.parallel_sampling, 1, 1)
+      else:
+        points = points.repeat(self.args.parallel_sampling, 1)
+        edge_index = self.duplicate_edge_index(edge_index, np_points.shape[0], device)
 
     for _ in range(self.args.sequential_sampling):
       xt = torch.randn_like(adj_matrix.float())
       if self.args.parallel_sampling > 1:
         if not self.sparse:
           xt = xt.repeat(self.args.parallel_sampling, 1, 1)
-          xt = torch.randn_like(xt)
-          points = points.repeat(self.args.parallel_sampling, 1, 1)
         else:
           xt = xt.repeat(self.args.parallel_sampling, 1)
-          xt = torch.randn_like(xt)
-          points = points.repeat(self.args.parallel_sampling, 1)
+        xt = torch.randn_like(xt)
 
       if self.diffusion_type == 'gaussian':
         xt.requires_grad = True
@@ -178,13 +196,7 @@ class TSPModel(COMetaModel):
         xt = (xt > 0).long()
 
       if self.sparse:
-        points = points.reshape((-1, 2))
         xt = xt.reshape(-1)
-        edge_index = edge_index.reshape((2, -1))
-        edge_index_np = edge_index.cpu().numpy()
-
-        if self.args.parallel_sampling > 1:
-          edge_index = self.duplicate_edge_index(edge_index, np_points.shape[0], device)
 
       steps = self.args.inference_diffusion_steps
       time_schedule = InferenceSchedule(inference_schedule=self.args.inference_schedule,
@@ -208,66 +220,22 @@ class TSPModel(COMetaModel):
       else:
         adj_mat = xt.float().cpu().detach().numpy() + 1e-6
 
-      splitted_adj_mat = np.split(adj_mat, self.args.parallel_sampling, axis=0)
+      if self.args.save_numpy_heatmap:
+        if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
+          raise NotImplementedError("Save numpy heatmap only support single sampling")
 
-      if not self.sparse:
-        splitted_adj_mat = [
-            adj_mat[0] + adj_mat[0].T for adj_mat in splitted_adj_mat
-        ]
-      else:
-        splitted_adj_mat = [
-            scipy.sparse.coo_matrix(
-                (adj_mat, (edge_index_np[0], edge_index_np[1])),
-            ).toarray() + scipy.sparse.coo_matrix(
-                (adj_mat, (edge_index_np[1], edge_index_np[0])),
-            ).toarray() for adj_mat in splitted_adj_mat
-        ]
-
-      splitted_points = [
-          np_points for _ in range(self.args.parallel_sampling)
-      ]
-
-      if np_points.shape[0] > 1000 and self.args.parallel_sampling > 1:
-        with Pool(self.args.parallel_sampling) as p:
-          results = p.starmap(
-              cython_merge,
-              zip(splitted_points, splitted_adj_mat),
-          )
-      else:
-        results = [
-            cython_merge(_np_points, _adj_mat) for _np_points, _adj_mat in zip(splitted_points, splitted_adj_mat)
-        ]
-
-      splitted_real_adj_mat, splitted_merge_iterations = zip(*results)
-
-      tours = []
-      for i in range(self.args.parallel_sampling):
-        tour = [0]
-        while len(tour) < splitted_adj_mat[i].shape[0] + 1:
-          n = np.nonzero(splitted_real_adj_mat[i][tour[-1]])[0]
-          if len(tour) > 1:
-            n = n[n != tour[-2]]
-          tour.append(n.max())
-        tours.append(tour)
-
-      merge_iterations = np.mean(splitted_merge_iterations)
+      tours, merge_iterations = merge_tours(
+          adj_mat, np_points, np_edge_index, split, real_batch_idx,
+          logger=self.logger, sparse_graph=self.sparse,
+          parallel_sampling=self.args.parallel_sampling,
+          save_numpy_heatmap=self.args.save_numpy_heatmap,
+      )
 
       # Refine using 2-opt
       solved_tours, ns = batched_two_opt_torch(
           np_points.astype("float64"), np.array(tours).astype('int64'),
           max_iterations=self.args.two_opt_iterations, device=device)
       stacked_tours.append(solved_tours)
-
-      if self.args.save_numpy_heatmap:
-        if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
-          raise NotImplementedError("Save numpy heatmap only support single sampling")
-        exp_save_dir = os.path.join(self.logger.save_dir, self.logger.name, self.logger.version)
-        heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
-        rank_zero_info(f"Rank {self.trainer.global_rank}: Saving heatmap to {heatmap_path}")
-        os.makedirs(heatmap_path, exist_ok=True)
-        real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
-        np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
-        np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
 
     solved_tours = np.concatenate(stacked_tours, axis=0)
 
@@ -290,37 +258,3 @@ class TSPModel(COMetaModel):
 
   def validation_step(self, batch, batch_idx):
     return self.test_step(batch, batch_idx, split='val')
-
-  def train_dataloader(self):
-    batch_size = self.args.batch_size
-    train_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.training_split),
-        sparse_factor=self.args.sparse_factor,
-    )
-
-    train_dataloader = GraphDataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=self.args.num_workers, pin_memory=True,
-        persistent_workers=True, drop_last=True)
-    return train_dataloader
-
-  def test_dataloader(self):
-    batch_size = 1
-    test_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.test_split),
-        sparse_factor=self.args.sparse_factor,
-    )
-    print("Test dataset size:", len(test_dataset))
-    test_dataloader = GraphDataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    return test_dataloader
-
-  def val_dataloader(self):
-    batch_size = 1
-    test_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
-        sparse_factor=self.args.sparse_factor,
-    )
-    val_dataset = torch.utils.data.Subset(test_dataset, range(self.args.validation_examples))
-    print("Validation dataset size:", len(val_dataset))
-    val_dataloader = GraphDataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    return val_dataloader

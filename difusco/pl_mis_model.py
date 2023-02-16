@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
-from torch_geometric.data import DataLoader as GraphDataLoader
 
 from co_datasets.mis_dataset import MISDataset
 from utils.diffusion_schedulers import InferenceSchedule
@@ -20,6 +19,23 @@ class MISModel(COMetaModel):
   def __init__(self,
                param_args=None):
     super(MISModel, self).__init__(param_args=param_args, node_feature_only=True)
+
+    data_label_dir = None
+    if self.args.training_split_label_dir is not None:
+      data_label_dir = os.path.join(self.args.storage_path, self.args.training_split_label_dir)
+
+    self.train_dataset = MISDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.training_split),
+        data_label_dir=data_label_dir,
+    )
+
+    self.test_dataset = MISDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.test_split),
+    )
+
+    self.validation_dataset = MISDataset(
+        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
+    )
 
   def forward(self, x, t, edge_index):
     return self.model(x, t, edge_index=edge_index)
@@ -194,39 +210,3 @@ class MISModel(COMetaModel):
 
   def validation_step(self, batch, batch_idx):
     return self.test_step(batch, batch_idx, split='val')
-
-  def train_dataloader(self):
-    batch_size = self.args.batch_size
-    data_label_dir = None
-    if self.args.training_split_label_dir is not None:
-      data_label_dir = os.path.join(self.args.storage_path, self.args.training_split_label_dir)
-
-    train_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.training_split),
-        data_label_dir=data_label_dir,
-    )
-
-    train_dataloader = GraphDataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=self.args.num_workers, pin_memory=True,
-        persistent_workers=True, drop_last=True)
-    return train_dataloader
-
-  def test_dataloader(self):
-    batch_size = 1
-    test_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.test_split),
-    )
-    print("Test dataset size:", len(test_dataset))
-    test_dataloader = GraphDataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    return test_dataloader
-
-  def val_dataloader(self):
-    batch_size = 1
-    test_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
-    )
-    val_dataset = torch.utils.data.Subset(test_dataset, range(self.args.validation_examples))
-    print("Validation dataset size:", len(val_dataset))
-    val_dataloader = GraphDataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    return val_dataloader

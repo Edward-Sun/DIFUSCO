@@ -4,6 +4,8 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+import torch.utils.data
+from torch_geometric.data import DataLoader as GraphDataLoader
 from pytorch_lightning.utilities import rank_zero_info
 
 from models.gnn_encoder import GNNEncoder
@@ -179,3 +181,24 @@ class COMetaModel(pl.LightningModule):
     edge_index = edge_index + edge_index_indent
     edge_index = edge_index.reshape((2, -1))
     return edge_index
+
+  def train_dataloader(self):
+    batch_size = self.args.batch_size
+    train_dataloader = GraphDataLoader(
+        self.train_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=self.args.num_workers, pin_memory=True,
+        persistent_workers=True, drop_last=True)
+    return train_dataloader
+
+  def test_dataloader(self):
+    batch_size = 1
+    print("Test dataset size:", len(self.test_dataset))
+    test_dataloader = GraphDataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
+    return test_dataloader
+
+  def val_dataloader(self):
+    batch_size = 1
+    val_dataset = torch.utils.data.Subset(self.validation_dataset, range(self.args.validation_examples))
+    print("Validation dataset size:", len(val_dataset))
+    val_dataloader = GraphDataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    return val_dataloader
