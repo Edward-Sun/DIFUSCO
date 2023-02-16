@@ -222,15 +222,7 @@ class TSPModel(COMetaModel):
         adj_mat = xt.float().cpu().detach().numpy() + 1e-6
 
       if self.args.save_numpy_heatmap:
-        if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
-          raise NotImplementedError("Save numpy heatmap only support single sampling")
-        exp_save_dir = os.path.join(self.logger.save_dir, self.logger.name, self.logger.version)
-        heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
-        rank_zero_info(f"Saving heatmap to {heatmap_path}")
-        os.makedirs(heatmap_path, exist_ok=True)
-        real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
-        np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
-        np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
+        self.run_save_numpy_heatmap(adj_mat, np_points, real_batch_idx, split)
 
       tours, merge_iterations = merge_tours(
           adj_mat, np_points, np_edge_index,
@@ -262,6 +254,17 @@ class TSPModel(COMetaModel):
       self.log(k, v, on_epoch=True, sync_dist=True)
     self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
     return metrics
+
+  def run_save_numpy_heatmap(self, adj_mat, np_points, real_batch_idx, split):
+    if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
+      raise NotImplementedError("Save numpy heatmap only support single sampling")
+    exp_save_dir = os.path.join(self.logger.save_dir, self.logger.name, self.logger.version)
+    heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
+    rank_zero_info(f"Saving heatmap to {heatmap_path}")
+    os.makedirs(heatmap_path, exist_ok=True)
+    real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
+    np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
+    np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
 
   def validation_step(self, batch, batch_idx):
     return self.test_step(batch, batch_idx, split='val')
