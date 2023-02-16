@@ -9,6 +9,14 @@ conda env create -f environment.yml
 conda activate difusco
 ```
 
+Running TSP experiments requires installing the additional cython package for merging the diffusion heatmap results:
+
+```bash
+cd difusco/utils/cython_merge
+python setup.py build_ext --inplace
+cd -
+```
+
 ## Codebase Structure
 
 * `difusco/pl_meta_model.py`: the code for a meta pytorch-lightning model for training and evaluation.
