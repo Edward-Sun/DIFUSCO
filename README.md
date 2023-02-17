@@ -1,6 +1,6 @@
 # DIFUSCO
 
-See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](TBD) for the paper associated with this codebase.
+See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](https://arxiv.org/abs/2302.08224) for the paper associated with this codebase.
 
 ## Setup
 
@@ -35,3 +35,16 @@ Please check the [reproducing_scripts](reproducing_scripts.md) for more details.
 ## Pretrained Checkpoints
 
 Please download the pretrained model checkpoints from [here](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH?usp=sharing).
+
+## Reference
+
+If you found this codebase useful, please consider citing the paper:
+
+```
+@article{sun2023difusco,
+  title={DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization},
+  author={Sun, Zhiqing and Yang, Yiming},
+  journal={arXiv preprint arXiv:2302.08224},
+  year={2023}
+}
+```
