@@ -2,6 +2,8 @@
 
 See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](https://arxiv.org/abs/2302.08224) for the paper associated with this codebase.
 
+![Alt text](tsp_illustration.png?raw=true "TSP Illustration of DIFUSCO")
+
 ## Setup
 
 ```bash
