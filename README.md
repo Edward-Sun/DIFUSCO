@@ -1,4 +1,4 @@
-# DIFUSCO
+# DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization
 
 See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](https://arxiv.org/abs/2302.08224) for the paper associated with this codebase.
 
