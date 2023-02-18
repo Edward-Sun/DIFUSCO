@@ -47,21 +47,12 @@ def _train_or_solve(args):
     global cuda_devices
     global got_devices_from_folder
 
-    if args.solver == "dgl-treesearch":
-        from solvers.dgl_tree import DGLTreesearch
-        solver = DGLTreesearch()
-    elif args.solver == "intel-treesearch":
-        from solvers.intel_treesearch import IntelTreesearch
-        solver = IntelTreesearch()
-    elif args.solver == "gurobi":
+    if args.solver == "gurobi":
         from solvers.gurobi import Gurobi
         solver = Gurobi()
     elif args.solver == "kamis":
         from solvers.kamis import KaMIS
         solver = KaMIS()
-    elif args.solver == "lwd":
-        from solvers.lwd import LearningWhatToDefer
-        solver = LearningWhatToDefer()
     else:
         solver = None
 
