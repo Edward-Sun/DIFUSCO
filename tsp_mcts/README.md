@@ -6,6 +6,9 @@ Please place `tsp500_test_concorde.txt`, `tsp1000_test_concorde.txt`, and `tsp10
 
 ### Usage
 
+First, run the evaluation script for the diffusion mdoel with `--save_numpy_heatmap True`.
+
+Next, run the MCTS code:
 ```bash
 # You need to modify some hard coded configuration in the cpp code following the instructions in the script before running it.
 bash solve-500.sh
