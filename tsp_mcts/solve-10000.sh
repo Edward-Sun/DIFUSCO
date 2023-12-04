@@ -13,12 +13,17 @@ Total_Instance_Num=16
 threads=16
 Inst_Num_Per_Batch=$((Total_Instance_Num / threads))
 
+python -u convert_numpy_with_2opt.py \
+    --heatmap_dir "/some/path/like/tsp/models/tsp_diffusion/wandb_id" \
+    --num_files $Total_Instance_Num
+
 python -u convert_numpy_to_txt.py \
     --heatmap_dir "/some/path/like/tsp/models/tsp_diffusion/wandb_id" \
     --output_dir "/your/own/output_path" \
     --num_nodes $Temp_City_Num \
     --num_files $Total_Instance_Num \
-    --expected_valid_prob 0.00128
+    --expected_valid_prob 0.00128 \
+    --heatmap_prefix "2opt-heatmap"
 
 for ((i = 0; i < $threads; i++)); do
     {
