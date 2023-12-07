@@ -4,6 +4,11 @@ See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](ht
 
 ![Alt text](tsp_illustration.png?raw=true "TSP Illustration of DIFUSCO")
 
+<div align="center">
+    <img src="gaussian_difusco_demo.gif" alt="Gaussian" width="256px">
+  <img src="bernouli_difusco_demo.gif" alt="Bernouli" width="256px">
+</div>
+
 ## Setup
 
 ```bash
