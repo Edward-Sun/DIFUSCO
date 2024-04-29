@@ -110,7 +110,7 @@ class COMetaModel(pl.LightningModule):
     else:
       target_t = torch.from_numpy(target_t).view(1)
 
-    # Thanks to Daniyar and Sheng, who found the "target_t == 0" branch is not needed :)
+    # Thanks to Daniyar and Shengyu, who found the "target_t == 0" branch is not needed :)
     # if target_t > 0:
     Q_t = np.linalg.inv(diffusion.Q_bar[target_t]) @ diffusion.Q_bar[t]
     Q_t = torch.from_numpy(Q_t).float().to(x0_pred_prob.device)
