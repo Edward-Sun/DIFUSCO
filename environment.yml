@@ -87,7 +87,7 @@ dependencies:
     - matplotlib==3.5.3
     - multidict==6.0.4
     - networkx==2.6.3
-    - numpy==1.20.0
+    - numpy>=1.21.0
     - oauthlib==3.2.2
     - opencv-python==4.7.0.68
     - packaging==23.0
@@ -98,9 +98,8 @@ dependencies:
     - psutil==5.9.4
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
-    - pyconcorde==0.1.0
     - pydeprecate==0.3.2
-    - pyg-lib==0.1.0+pt111cu113
+    - pyconcorde @ git+https://github.com/jvkersch/pyconcorde
     - pyparsing==3.0.9
     - pyrss2gen==1.1
     - pysocks==1.7.1
@@ -123,15 +122,18 @@ dependencies:
     - tensorboard-plugin-wit==1.8.1
     - tensorboardx==2.5.1
     - threadpoolctl==3.1.0
+    - --extra-index-url https://download.pytorch.org/whl/cu113
     - torch==1.11.0+cu113
-    - torch-cluster==1.6.0
-    - torch-geometric==2.2.0
-    - torch-scatter==2.1.0
-    - torch-sparse==0.6.16
-    - torch-spline-conv==1.2.1
     - torchaudio==0.11.0+cu113
-    - torchmetrics==0.11.0
     - torchvision==0.12.0+cu113
+    - --find-links https://data.pyg.org/whl/torch-1.11.0+cu113.html
+    - pyg-lib==0.1.0
+    - torch-scatter==2.0.9
+    - torch-cluster==1.6.0
+    - torch-sparse==0.6.15
+    - torch-spline-conv==1.2.1
+    - torch-geometric==2.2.0
+    - torchmetrics==0.11.0
     - tqdm==4.64.1
     - tsplib95==0.7.1
     - urllib3==1.26.14
